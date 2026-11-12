@@ -13,7 +13,7 @@
 --
 -- 来源：`pg_dump --schema-only --no-owner --no-privileges` 导出自开发库（迁移链 head）。
 -- 为什么不用「空库跑 alembic upgrade head」生成：迁移链首版是 ALTER 型基线（假定
--- VeriMind 时期的表已存在），空库直接 upgrade 会在 `ALTER TABLE chats ...` 处失败。
+-- 早期版本的表已存在），空库直接 upgrade 会在 `ALTER TABLE chats ...` 处失败。
 -- 所以本脚本是全新部署的唯一建表来源，导出后再在空库上实际加载验证过。
 --
 -- ==========================================
