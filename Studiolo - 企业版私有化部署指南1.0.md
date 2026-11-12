@@ -2,7 +2,7 @@
 
 > 版本: v1.0.0 (Enterprise)
 >
-> 最后更新: 2026-11-04
+> 最后更新: 2026-11-12
 >
 > 适用对象: 系统管理员 / 运维工程师
 
@@ -317,8 +317,17 @@ curl http://127.0.0.1:8001/health
 > docker compose up -d
 > ```
 >
-> 数据目录与 `secrets/` 保持不变即可；若有表结构变更，升级说明会另行给出对应命令。
-> **升级前请备份** `data/` 与 `secrets/`。
+> 数据目录与 `secrets/` 保持不变即可；**升级前请备份** `data/` 与 `secrets/`。
+>
+> 若该版本有表结构变更，需执行一次性迁移。业务镜像**不包含**数据库迁移脚本，请把
+> 交付方提供的 `migrations/` 目录放到部署目录下，然后执行：
+>
+> ```
+> docker compose run --rm --no-deps -v "$PWD/migrations:/app/migrations:ro" \
+>   backend alembic upgrade head
+> ```
+>
+> 迁移成功后再 `docker compose up -d`。
 
 ------
 

@@ -1563,4 +1563,42 @@ ALTER TABLE ONLY public.study_relearn_requests
 
 
 
-INSERT INTO public.alembic_version (version_num) VALUES ('e3b7c92d4a10');
+--
+-- Name: system_usage_records; Type: TABLE; Schema: public; Owner: -
+--
+-- 用量统计账本（迁移 b7e2c9a41d63）。init.sql 按 head 手工补齐：建表 + 两个索引 +
+-- 主键 + 版本号，缺任何一项全新部署都会在用量统计页 500。
+--
+
+CREATE TABLE public.system_usage_records (
+    kind character varying(16) NOT NULL,
+    slot character varying(32) NOT NULL,
+    scope character varying(16) NOT NULL,
+    model character varying(128) NOT NULL,
+    provider character varying(32) NOT NULL,
+    user_id character varying(36),
+    prompt_tokens integer,
+    completion_tokens integer,
+    total_tokens integer,
+    cached_tokens integer,
+    latency_ms integer,
+    ttft_ms integer,
+    status character varying(8) NOT NULL,
+    error_type character varying(64),
+    id character varying(36) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE ONLY public.system_usage_records
+    ADD CONSTRAINT system_usage_records_pkey PRIMARY KEY (id);
+
+
+CREATE INDEX ix_system_usage_records_created_at ON public.system_usage_records USING btree (created_at);
+
+
+CREATE INDEX ix_system_usage_records_id ON public.system_usage_records USING btree (id);
+
+
+INSERT INTO public.alembic_version (version_num) VALUES ('b7e2c9a41d63');
