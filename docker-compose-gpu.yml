@@ -1,0 +1,247 @@
+# Studiolo 智学 — 企业版私有化部署（GPU 版，Linux + NVIDIA）
+#
+# 与 docker-compose.yml 只有三处不同：
+#   1. 向量模型服务（bge-m3）与向量库（Milvus）改用 GPU 推理；
+#   2. Milvus 镜像换成 -gpu 标签；
+#   3. 两个 GPU 服务声明 nvidia 设备预留。
+# 其余服务、端口、挂载、健康检查与 CPU 版完全一致。
+#
+# 前置条件：宿主机已安装 NVIDIA 驱动与 NVIDIA Container Toolkit
+# （nvidia-smi 正常、docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi 通过）。
+#
+# 使用：cp env.example .env && vim .env && docker compose -f docker-compose-gpu.yml up -d
+
+name: studiolo
+
+networks:
+  studiolo-net:
+    driver: bridge
+
+services:
+  # =========================================
+  # 1. 后端 (Backend)
+  # =========================================
+  backend:
+    image: shanpeng238/studiolo-backend:v1.0.0
+    container_name: studiolo-backend
+    restart: always
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./logs:/app/logs
+      - ./secrets/jwt-private.pem:/app/jwt-private.pem:ro
+      - ./secrets/jwt-public.pem:/app/jwt-public.pem:ro
+      # ⚠️ 宿主机文件必须预先存在（secrets/studiolo.lic 已预置空文件），
+      # 否则 Docker 会把挂载源建成目录，激活时写入报 IsADirectoryError。
+      - ./secrets/studiolo.lic:/app/studiolo.lic
+      - /:/host_sys:ro
+      - ./data/uploads:/app/uploads
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - MILVUS_URI=http://milvus:19530
+      - MODEL_SERVICE_URL=http://model-service:5000
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
+      - BASE_URL=${BACKEND_PUBLIC_URL:-http://localhost:8001}
+      # 健康探针从容器内访问 127.0.0.1:8000，强制补上回环地址（详见 CPU 版的注释）
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*},127.0.0.1,localhost
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=5)
+      interval: 30s
+      start_period: 120s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      model-service:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
+    networks:
+      - studiolo-net
+
+  # =========================================
+  # 2. 前端 (Frontend)
+  # =========================================
+  frontend:
+    image: shanpeng238/studiolo-frontend:v1.0.0
+    container_name: studiolo-frontend
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      - API_BASE_URL=${BACKEND_PUBLIC_URL:-http://localhost:8001}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - studiolo-net
+
+  # =========================================
+  # 3. 向量模型服务 (bge-m3，GPU)
+  # =========================================
+  model-service:
+    # 沿用已发布的 verimind 仓库名（v1.0.0 是多架构标签）；容器名仍是 studiolo 的
+    image: shanpeng238/verimind-bge-m3-service:v1.0.0
+    container_name: studiolo-bge-m3-service
+    restart: always
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - studiolo-net
+
+  # =========================================
+  # 4. 知识图谱 (Neo4j + GDS + APOC)
+  # =========================================
+  neo4j:
+    # 同上：镜像沿用 verimind 仓库名，内容为 Neo4j 5.26 + GDS + APOC
+    image: shanpeng238/verimind-neo4j:5.26-amd64
+    container_name: studiolo-neo4j
+    restart: always
+    ports:
+      - "127.0.0.1:7474:7474"
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}
+      - NEO4J_server_memory_heap_max__size=2G
+      - NEO4J_server_memory_pagecache_size=1G
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      start_period: 60s
+      timeout: 20s
+      retries: 3
+    volumes:
+      - ./data/neo4j/data:/data
+      - ./data/neo4j/logs:/logs
+    networks:
+      - studiolo-net
+
+  # =========================================
+  # 5. 向量数据库 (Milvus standalone，GPU)
+  # =========================================
+  milvus:
+    image: milvusdb/milvus:v2.6.9-gpu
+    container_name: studiolo-milvus
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    restart: always
+    environment:
+      - ETCD_ENDPOINTS=etcd:2379
+      - MINIO_ADDRESS=minio:9000
+      - MINIO_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - MINIO_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    volumes:
+      - ./data/milvus:/var/lib/milvus
+    depends_on:
+      - etcd
+      - minio
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: ["gpu"]
+              device_ids: ["0"]
+    networks:
+      - studiolo-net
+
+  # =========================================
+  # 6. 基础设施 (Postgres / Redis / MinIO / Etcd)
+  # =========================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: studiolo-postgres
+    restart: always
+    command: -c timezone=Asia/Shanghai
+    env_file: .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      start_period: 20s
+      timeout: 10s
+      retries: 6
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./init-scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - studiolo-net
+
+  redis:
+    image: redis:8.2.3
+    container_name: studiolo-redis
+    restart: always
+    env_file: .env
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      start_period: 10s
+      timeout: 5s
+      retries: 6
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - studiolo-net
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: studiolo-minio
+    restart: always
+    command: minio server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    env_file: .env
+    volumes:
+      - ./data/minio:/data
+    networks:
+      - studiolo-net
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.25
+    container_name: studiolo-etcd
+    restart: always
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ./data/etcd:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - studiolo-net

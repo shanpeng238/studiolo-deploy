@@ -1,0 +1,35 @@
+# --- 部署核心保护 (Deployment Core) ---
+.env
+.env*
+!.env.example
+# 用 secrets/* 而非 secrets/：排除整个目录后 git 不再进入，
+# 目录内的否定规则（!）不会生效。secrets/* 逐个匹配文件，否定才可用。
+secrets/*
+*.lic
+*.pem
+*.key
+# 空占位文件必须随仓库分发：compose 挂载它到 /app/studiolo.lic，
+# 文件不存在时 Docker 会把挂载点建成目录，导致后端写授权失败。
+# ⚠️ 必须放在 *.lic 之后——gitignore 以最后一条匹配的规则为准。
+!secrets/studiolo.lic
+
+# --- 数据与持久化 (Data & Persistence) ---
+# 严格忽略所有容器挂载的数据目录
+data/
+logs/
+*.log
+
+# --- 系统与 IDE (OS & IDEs) ---
+.DS_Store
+.DS_Store?
+._*
+.idea/
+.vscode/
+*.swp
+
+# --- 开发遗留 (Dev Artifacts) ---
+__pycache__/
+*.py[oc]
+.venv/
+build/
+dist/
