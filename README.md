@@ -13,7 +13,6 @@
 | `init-scripts/init.sql` | 空库初始化：建库建表 + 写入 Alembic 版本号 |
 | `secrets/` | 运行时挂载目录。仓库只带**空的** `studiolo.lic` 占位文件，授权与 JWT 密钥由部署时生成，不入库 |
 | `Studiolo - 企业版私有化部署指南1.0.md` | 面向客户的完整部署步骤 |
-| `RELEASE.md` | 供应商内部：镜像来源与构建推送、发布前检查清单 |
 
 ## 快速开始
 
@@ -27,4 +26,5 @@ docker compose up -d     # CPU 版；GPU 服务器用 -f docker-compose-gpu.yml
 ## 镜像
 
 后端与前端镜像随版本发布在 Docker Hub（`shanpeng238/studiolo-backend` / `studiolo-frontend`）；
-Neo4j 与 bge-m3 是自封装的通用基础镜像，沿用已发布的 `verimind-*` 仓库名，理由见 `RELEASE.md`。
+Neo4j 与 bge-m3 复用已发布的通用基础镜像（`shanpeng238/verimind-neo4j` / `verimind-bge-m3-service`），
+仓库名沿用旧名，容器名与栈名仍是 `studiolo-*`。
