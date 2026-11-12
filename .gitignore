@@ -28,6 +28,8 @@ logs/
 *.swp
 
 # --- 开发遗留 (Dev Artifacts) ---
+# macOS 本机开发栈：只服务开发者本机，不随部署包分发（客户用 Linux 那两套）
+docker-compose-mac.yml
 __pycache__/
 *.py[oc]
 .venv/

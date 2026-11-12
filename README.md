@@ -9,7 +9,6 @@
 | --- | --- |
 | `docker-compose.yml` | Linux CPU 部署栈（交付客户用这个） |
 | `docker-compose-gpu.yml` | Linux GPU 部署栈（Milvus 换 `-gpu` 镜像） |
-| `docker-compose-mac.yml` | macOS 本机开发栈（容器名 `studiolo-*`，数据落 `data/`） |
 | `env.example` | 配置模板，交付前 `cp env.example .env` 并填必填项 |
 | `init-scripts/init.sql` | 空库初始化：建库建表 + 写入 Alembic 版本号 |
 | `secrets/` | 运行时挂载目录。仓库只带**空的** `studiolo.lic` 占位文件，授权与 JWT 密钥由部署时生成，不入库 |
@@ -20,7 +19,7 @@
 
 ```bash
 cp env.example .env      # 填 LICENSE_HMAC_KEY、各密码、SMTP 账号
-docker compose up -d     # Linux；macOS 用 -f docker-compose-mac.yml
+docker compose up -d     # CPU 版；GPU 服务器用 -f docker-compose-gpu.yml
 ```
 
 详细步骤（激活、首管理员、常见故障）见部署指南。

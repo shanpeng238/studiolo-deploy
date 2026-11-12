@@ -7,7 +7,6 @@
 | `shanpeng238/studiolo-backend:v1.0.0` | 本仓 `backend/` 构建 | FastAPI 后端（Cython 编译），容器内 8000。**当前 Docker Hub 上还没有这个 tag，发布前必须构建推送** |
 | `shanpeng238/studiolo-frontend:v1.0.0` | 本仓 `frontend/` 构建 | Next.js standalone，容器内 3000。**同上，尚未推送** |
 | `shanpeng238/verimind-neo4j:5.26-amd64` | 已发布的成品镜像，**直接引用** | Neo4j 5.26 Community + GDS + APOC（插件已预装）；CPU / GPU 版共用 |
-| `shanpeng238/verimind-neo4j:5.26-arm64` | 已发布的成品镜像，**直接引用** | 仅 `docker-compose-mac.yml`（Mac 开发）使用；该仓按架构分 tag，没有多架构清单 |
 | `shanpeng238/verimind-bge-m3-service:v1.0.0` | 已发布的成品镜像，**直接引用** | 通用 bge-m3 embedding HTTP 服务；`v1.0.0` 是多架构标签（amd64 + arm64），另有 `-amd64` / `-arm64` 单架构标签 |
 
 neo4j 与 bge-m3 是自封装的通用基础镜像，**沿用已经发布的 `verimind-*` 仓库名**，不再另起 `studiolo-*` 名字重新打 tag 推送（改了就要维护两套 tag，且镜像内容完全相同）。容器名、网络名与镜像名是两回事——容器仍是 `studiolo-neo4j` / `studiolo-bge-m3-service`，栈仍是 `studiolo-net`。
