@@ -83,8 +83,8 @@ studiolo-deploy/
 ├── init-scripts/
 │   └── init.sql              # 自动建表脚本（全新库唯一建表来源）
 └── secrets/
-    ├── jwt-private.pem       # 会话签名密钥
-    ├── jwt-public.pem        # 会话验签公钥
+    ├── jwt-private.pem       # 会话签名密钥（仓库自带）
+    ├── jwt-public.pem        # 会话验签公钥（仓库自带）
     └── studiolo.lic          # 授权文件占位（空文件，勿删）
 ```
 
@@ -127,8 +127,8 @@ vim .env
 
 ### 2.3 检查密钥
 
-确认 `secrets/` 目录下已包含 `jwt-private.pem`、`jwt-public.pem`（已随包预置，每个部署包独立一份，
-**不要与其它部署共用**）。`secrets/studiolo.lic` 是空占位文件，**不要删除**——后端激活时写入它，
+确认 `secrets/` 目录下已包含 `jwt-private.pem`、`jwt-public.pem`（**仓库自带，克隆下来就有**，用于会话令牌签名）。
+如需为本次部署换成独立密钥，用 `openssl` 生成一对覆盖即可（两个文件必须成对替换，否则旧会话全部失效）。`secrets/studiolo.lic` 是空占位文件，**不要删除**——后端激活时写入它，
 删除后 Docker 会把挂载点建成目录，导致激活失败。
 
 ### 2.4 启动服务

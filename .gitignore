@@ -8,6 +8,9 @@ secrets/*
 *.lic
 *.pem
 *.key
+# JWT 会话签名密钥对随仓库分发（克隆即可启动）；授权文件 .lic 仍不入库
+!secrets/jwt-private.pem
+!secrets/jwt-public.pem
 # 空占位文件必须随仓库分发：compose 挂载它到 /app/studiolo.lic，
 # 文件不存在时 Docker 会把挂载点建成目录，导致后端写授权失败。
 # ⚠️ 必须放在 *.lic 之后——gitignore 以最后一条匹配的规则为准。

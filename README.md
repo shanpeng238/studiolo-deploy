@@ -11,7 +11,7 @@
 | `docker-compose-gpu.yml` | Linux GPU 部署栈（Milvus 换 `-gpu` 镜像） |
 | `env.example` | 配置模板，交付前 `cp env.example .env` 并填必填项 |
 | `init-scripts/init.sql` | 空库初始化：建库建表 + 写入 Alembic 版本号 |
-| `secrets/` | 运行时挂载目录。仓库只带**空的** `studiolo.lic` 占位文件，授权与 JWT 密钥由部署时生成，不入库 |
+| `secrets/` | 运行时挂载目录：自带 JWT 密钥对与**空的** `studiolo.lic` 占位文件；授权文件激活后写入，不入库 |
 | `Studiolo - 企业版私有化部署指南1.0.md` | 面向客户的完整部署步骤 |
 
 ## 快速开始
